@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kubectl get:*)",
+      "Bash(flux reconcile:*)",
+      "Bash(kubectl describe:*)",
+      "Bash(flux suspend:*)",
+      "Bash(flux resume:*)",
+      "Bash(kubectl logs:*)",
+      "WebSearch",
+      "WebFetch(domain:registry.terraform.io)",
+      "WebFetch(domain:github.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

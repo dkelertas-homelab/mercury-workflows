@@ -10,14 +10,14 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = "c9f99369-d202-458b-9a97-4c95a5cbc20c"
+  subscription_id = "4d3581c5-8c2a-4c59-8455-f5453776eeb7"
 }
 
 # Customer 1: CATO Corporation
 module "cato" {
   source = "./modules/customer-infrastructure"
 
-  customer_name           = "cato"
+  customer_name           = "cato01"
   location                = "northeurope"
   vnet_cidr               = "10.1.0.0/16"
   ssh_public_key          = file("~/.ssh/mercury.pub")
@@ -28,7 +28,7 @@ module "cato" {
 module "cicero" {
   source = "./modules/customer-infrastructure"
 
-  customer_name           = "cicero"
+  customer_name           = "cicero01"
   location                = "northeurope"
   vnet_cidr               = "10.2.0.0/16"
   ssh_public_key          = file("~/.ssh/mercury.pub")
@@ -52,17 +52,17 @@ output "cato_postgres" {
 }
 
 # # Outputs for Customer 2
-# output "cicero_vm_ip" {
-#   description = "Cicero VM public IP"
-#   value       = module.cicero.vm_public_ip
-# }
-#
-# output "cicero_ssh" {
-#   description = "Cicero SSH connection"
-#   value       = module.cicero.ssh_connection
-# }
-#
-# output "cicero_postgres" {
-#   description = "Cicero PostgreSQL FQDN"
-#   value       = module.cicero.postgres_fqdn
-# }
+output "cicero_vm_ip" {
+  description = "Cicero VM public IP"
+  value       = module.cicero.vm_public_ip
+}
+
+output "cicero_ssh" {
+  description = "Cicero SSH connection"
+  value       = module.cicero.ssh_connection
+}
+
+output "cicero_postgres" {
+  description = "Cicero PostgreSQL FQDN"
+  value       = module.cicero.postgres_fqdn
+}
