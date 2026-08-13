@@ -53,9 +53,11 @@ resource "azurerm_kubernetes_cluster" "main" {
   }
 }
 
-# DB
-resource "azurerm_postgresql_flexible_server" "pgsql" {
-  name                = "aks-psqlflxsvr"
+## DB
+
+resource "azurerm_postgresql_flexible_server" "n8n_db" {
+
+  name                = "psql-n8n-mercury"
   resource_group_name = azurerm_resource_group.aks.name
   location            = azurerm_resource_group.aks.location
   zone                = "2"
@@ -75,24 +77,24 @@ resource "azurerm_postgresql_flexible_server" "pgsql" {
 
 resource "azurerm_postgresql_flexible_server_configuration" "disable_ssl" {
   name      = "require_secure_transport"
-  server_id = azurerm_postgresql_flexible_server.pgsql.id
+  server_id = azurerm_postgresql_flexible_server.n8n_db.id
   value     = "OFF"
 }
 
 resource "azurerm_postgresql_flexible_server_database" "n8n" {
   name      = "n8n"
-  server_id = azurerm_postgresql_flexible_server.pgsql.id
+  server_id = azurerm_postgresql_flexible_server.n8n_db.id
 }
 
 resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_azure_services" {
   name             = "AllowAzureServices"
-  server_id        = azurerm_postgresql_flexible_server.pgsql.id
+  server_id        = azurerm_postgresql_flexible_server.n8n_db.id
   start_ip_address = "0.0.0.0"
   end_ip_address   = "0.0.0.0"
 }
 
 output "db_host" {
-  value = azurerm_postgresql_flexible_server.pgsql.fqdn
+  value = azurerm_postgresql_flexible_server.n8n_db.fqdn
 }
 
 output "db_name" {
@@ -100,7 +102,7 @@ output "db_name" {
 }
 
 output "db_user" {
-  value = azurerm_postgresql_flexible_server.pgsql.administrator_login
+  value = azurerm_postgresql_flexible_server.n8n_db.administrator_login
 }
 
 
@@ -183,4 +185,3 @@ output "aks_keyvault_secrets_provider_client_id" {
   value       = azurerm_kubernetes_cluster.main.key_vault_secrets_provider[0].secret_identity[0].client_id
   description = "AKS Key Vault Secrets Provider Client ID for use in SecretProviderClass"
 }
-
