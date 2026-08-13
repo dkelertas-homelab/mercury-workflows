@@ -10,12 +10,12 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = "c9f99369-d202-458b-9a97-4c95a5cbc20c"
+  subscription_id = "4d3581c5-8c2a-4c59-8455-f5453776eeb7"
 }
 
 resource "azurerm_resource_group" "aks" {
   name     = "rg-cloud-course-aks"
-  location = "North Europe"
+  location = "Australia East"
 }
 
 resource "azurerm_kubernetes_cluster" "main" {
@@ -23,7 +23,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   location            = azurerm_resource_group.aks.location
   resource_group_name = azurerm_resource_group.aks.name
   dns_prefix          = "mercury"
-  kubernetes_version  = "1.32.0"
+  kubernetes_version  = "1.35.0"
 
   default_node_pool {
     name       = "default"
@@ -44,13 +44,18 @@ resource "azurerm_kubernetes_cluster" "main" {
   key_vault_secrets_provider {
     secret_rotation_enabled = false
   }
+
+  lifecycle {
+    ignore_changes = [
+      oidc_issuer_enabled,
+      default_node_pool[0].upgrade_settings
+    ]
+  }
 }
 
-## DB
-
-resource "azurerm_postgresql_flexible_server" "n8n_db" {
-
-  name                = "psql-n8n-mercury"
+# DB
+resource "azurerm_postgresql_flexible_server" "pgsql" {
+  name                = "aks-psqlflxsvr"
   resource_group_name = azurerm_resource_group.aks.name
   location            = azurerm_resource_group.aks.location
   zone                = "2"
@@ -70,24 +75,24 @@ resource "azurerm_postgresql_flexible_server" "n8n_db" {
 
 resource "azurerm_postgresql_flexible_server_configuration" "disable_ssl" {
   name      = "require_secure_transport"
-  server_id = azurerm_postgresql_flexible_server.n8n_db.id
+  server_id = azurerm_postgresql_flexible_server.pgsql.id
   value     = "OFF"
 }
 
 resource "azurerm_postgresql_flexible_server_database" "n8n" {
   name      = "n8n"
-  server_id = azurerm_postgresql_flexible_server.n8n_db.id
+  server_id = azurerm_postgresql_flexible_server.pgsql.id
 }
 
 resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_azure_services" {
   name             = "AllowAzureServices"
-  server_id        = azurerm_postgresql_flexible_server.n8n_db.id
+  server_id        = azurerm_postgresql_flexible_server.pgsql.id
   start_ip_address = "0.0.0.0"
   end_ip_address   = "0.0.0.0"
 }
 
 output "db_host" {
-  value = azurerm_postgresql_flexible_server.n8n_db.fqdn
+  value = azurerm_postgresql_flexible_server.pgsql.fqdn
 }
 
 output "db_name" {
@@ -95,7 +100,7 @@ output "db_name" {
 }
 
 output "db_user" {
-  value = azurerm_postgresql_flexible_server.n8n_db.administrator_login
+  value = azurerm_postgresql_flexible_server.pgsql.administrator_login
 }
 
 
