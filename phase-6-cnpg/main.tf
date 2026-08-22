@@ -14,12 +14,12 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = "c9f99369-d202-458b-9a97-4c95a5cbc20c"
+  subscription_id = "4d3581c5-8c2a-4c59-8455-f5453776eeb7"
 }
 
 resource "azurerm_resource_group" "aks" {
   name     = "rg-cloud-course-aks"
-  location = "North Europe"
+  location = "Australia East"
 }
 
 resource "azurerm_kubernetes_cluster" "main" {
@@ -27,11 +27,11 @@ resource "azurerm_kubernetes_cluster" "main" {
   location            = azurerm_resource_group.aks.location
   resource_group_name = azurerm_resource_group.aks.name
   dns_prefix          = "staging"
-  kubernetes_version  = "1.32.1"
+  kubernetes_version  = "1.34.7"
 
   default_node_pool {
     name                 = "default"
-    orchestrator_version = "1.32.1"
+    orchestrator_version = "1.34.7"
     node_count           = 2
     vm_size              = "Standard_D2s_v3"
   }
@@ -48,6 +48,12 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   key_vault_secrets_provider {
     secret_rotation_enabled = false
+  }
+  lifecycle {
+    ignore_changes = [
+      oidc_issuer_enabled,
+      default_node_pool[0].upgrade_settings
+    ]
   }
 }
 
@@ -66,9 +72,9 @@ resource "azurerm_kubernetes_flux_configuration" "main" {
   namespace  = "flux-system"
 
   git_repository {
-    url             = "ssh://git@github.com/mischavandenburg/mercury-gitops"
+    url             = "ssh://git@github.com/dkelertas-homelab/mercury-gitops"
     reference_type  = "branch"
-    reference_value = "main"
+    reference_value = "master"
 
     ssh_private_key_base64 = base64encode(file("~/.ssh/mercury"))
   }
@@ -106,7 +112,7 @@ resource "azurerm_kubernetes_flux_configuration" "main" {
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "mercury_vault" {
-  name                = "kv-mercury-staging"
+  name                = "d11s-kv-mercury-staging"
   location            = azurerm_resource_group.aks.location
   resource_group_name = azurerm_resource_group.aks.name
   tenant_id           = data.azurerm_client_config.current.tenant_id
