@@ -169,3 +169,22 @@ terraform output key_vault_name
 terraform output aks_keyvault_secrets_provider_client_id
 terraform output storage_account_name
 ```
+
+## Terraform remote state
+
+State lives in Azure Blob (durable, outside this phase's destroy blast radius):
+
+- RG: `rg-mercury-tfstate`
+- Storage: `d11smercurytfstate`
+- Container: `tfstate`
+- Key: `phase-7-aks-hardening.tfstate`
+
+Shared backend config is `backends/azure-blob.tfbackend`, softlinked from this folder as `azure-blob.tfbackend`.
+
+```bash
+az login
+terraform init -backend-config=azure-blob.tfbackend
+```
+
+Uses Azure AD (`use_azuread_auth`) — your account needs **Storage Blob Data Contributor** on that storage account.
+
