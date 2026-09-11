@@ -14,12 +14,12 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = "c9f99369-d202-458b-9a97-4c95a5cbc20c"
+  subscription_id = "4d3581c5-8c2a-4c59-8455-f5453776eeb7"
 }
 
 resource "azurerm_resource_group" "aks" {
   name     = "rg-cloud-course-aks"
-  location = "North Europe"
+  location = "Australia East"
 }
 
 ## AKS Cluster with Best Practices
@@ -30,10 +30,10 @@ resource "azurerm_kubernetes_cluster" "main" {
   location            = azurerm_resource_group.aks.location
   resource_group_name = azurerm_resource_group.aks.name
   dns_prefix          = "staging"
-  kubernetes_version  = "1.32.1"
+  kubernetes_version  = "1.34.7"
 
   azure_active_directory_role_based_access_control {
-    admin_group_object_ids = ["6c2aab3d-abfe-4b6a-90e2-d76433d03eb6"]
+    admin_group_object_ids = ["155dc92c-768e-4abe-924c-a00fb09c68f3"]
   }
 
   # Automatic upgrades,  patch level only for stability
@@ -162,7 +162,7 @@ resource "azurerm_kubernetes_flux_configuration" "main" {
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "mercury_vault" {
-  name                = "kv-mercury-staging"
+  name                = "d11s-kv-mercury-staging"
   location            = azurerm_resource_group.aks.location
   resource_group_name = azurerm_resource_group.aks.name
   tenant_id           = data.azurerm_client_config.current.tenant_id
