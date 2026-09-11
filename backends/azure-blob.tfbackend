@@ -1,0 +1,5 @@
+resource_group_name  = "rg-mercury-tfstate"
+storage_account_name = "d11smercurytfstate"
+container_name       = "tfstate"
+key                  = "phase-7-aks-hardening.tfstate"
+use_azuread_auth     = true
