@@ -5,13 +5,13 @@ metadata:
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: mischa@mischavandenburg.com
+    email: dkelertas@gmail.com
     privateKeySecretRef:
       name: letsencrypt-staging
     solvers:
       - http01:
           ingress:
-            class: traefik
+            class: traefik-traefik
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -20,10 +20,10 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: mischa@mischavandenburg.com
+    email: dkelertas@gmail.com
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
       - http01:
           ingress:
-            class: traefik
+            class: traefik-traefik

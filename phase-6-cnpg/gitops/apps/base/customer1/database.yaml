@@ -6,12 +6,12 @@ metadata:
 spec:
   instances: 3
 
-  # bootstrap:
-  #   initdb:
-  #     database: app
-  #     owner: app
-  #     secret:
-  #       name: customer1-db-credentials
+  #bootstrap:
+    #initdb:
+      #database: app
+      #owner: app
+      #secret:
+        #name: customer1-db-credentials
 
   bootstrap:
     recovery:
