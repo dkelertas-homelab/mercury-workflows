@@ -65,6 +65,13 @@ resource "azurerm_kubernetes_cluster" "main" {
     network_data_plane = "cilium"
   }
 
+  lifecycle {
+    ignore_changes = [
+      oidc_issuer_enabled,
+      default_node_pool[0].upgrade_settings
+    ]
+  }
+
   key_vault_secrets_provider {
     secret_rotation_enabled = false
   }
@@ -122,9 +129,9 @@ resource "azurerm_kubernetes_flux_configuration" "main" {
   namespace  = "flux-system"
 
   git_repository {
-    url             = "ssh://git@github.com/mischavandenburg/mercury-gitops"
+    url             = "ssh://git@github.com/dkelertas-homelab/mercury-gitops"
     reference_type  = "branch"
-    reference_value = "main"
+    reference_value = "master"
 
     ssh_private_key_base64 = base64encode(file("~/.ssh/mercury"))
   }
