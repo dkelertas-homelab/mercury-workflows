@@ -1,52 +1,60 @@
-output "resource_group_name" {
-  value = module.platform.resource_group_name
-}
-
-output "cluster_name" {
-  value = module.platform.cluster_name
-}
+## Infrastructure Outputs
 
 output "key_vault_name" {
-  value = module.platform.key_vault_name
+  value = azurerm_key_vault.mercury_vault.name
 }
 
 output "key_vault_uri" {
-  value = module.platform.key_vault_uri
+  value = azurerm_key_vault.mercury_vault.vault_uri
 }
 
 output "aks_keyvault_secrets_provider_client_id" {
-  value = module.platform.aks_keyvault_secrets_provider_client_id
-}
-
-output "tenant_id" {
-  value = module.platform.tenant_id
-}
-
-output "storage_account_name" {
-  value = module.platform.storage_account_name
-}
-
-output "log_analytics_workspace_id" {
-  value = module.platform.log_analytics_workspace_id
-}
-
-output "grafana_admin_password" {
-  value     = module.platform.grafana_admin_password
-  sensitive = true
-}
-
-output "customer_urls" {
-  value = module.platform.customer_urls
-}
-
-output "customer_namespaces" {
-  value = module.platform.customer_namespaces
-}
-
-output "customer_gitops_paths" {
-  value = module.platform.customer_gitops_paths
+  value       = azurerm_kubernetes_cluster.main.key_vault_secrets_provider[0].secret_identity[0].client_id
+  description = "AKS Key Vault Secrets Provider Client ID for use in SecretProviderClass"
 }
 
 output "gitops_identity_reminder" {
-  value = module.platform.gitops_identity_reminder
+  value = <<-EOT
+    IMPORTANT: Update the AKS identity in GitOps SecretProviderClasses!
+
+    If you recreated the AKS cluster, update this identity ID in:
+    - monitoring/controllers/staging/kube-prometheus-stack/kustomization.yaml
+
+    Current AKS identity: ${azurerm_kubernetes_cluster.main.key_vault_secrets_provider[0].secret_identity[0].client_id}
+  EOT
+  description = "Reminder to update GitOps SecretProviderClass identity"
+}
+
+output "storage_account_name" {
+  value       = azurerm_storage_account.cnpg_backups.name
+  description = "Storage account for CNPG backups"
+}
+
+output "grafana_admin_password" {
+  value       = random_password.grafana_admin.result
+  sensitive   = true
+  description = "Grafana admin password (stored in Key Vault as grafana-admin-password)"
+}
+
+## Customer Outputs
+
+output "customer_urls" {
+  value = {
+    for name, customer in module.customer : name => customer.n8n_url
+  }
+  description = "n8n URLs for all customers"
+}
+
+output "customer_namespaces" {
+  value = {
+    for name, customer in module.customer : name => customer.namespace
+  }
+  description = "Kubernetes namespaces for all customers"
+}
+
+output "customer_gitops_paths" {
+  value = {
+    for name, customer in module.customer : name => customer.gitops_path
+  }
+  description = "GitOps manifest paths for all customers"
 }

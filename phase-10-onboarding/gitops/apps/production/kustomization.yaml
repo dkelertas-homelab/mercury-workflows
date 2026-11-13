@@ -1,5 +1,0 @@
-# terraform apply overwrites this file with the customer list.
-# Empty until then, so the path exists and syncs no workloads.
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources: []

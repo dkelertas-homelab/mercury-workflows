@@ -43,12 +43,14 @@ variable "storage_account_primary_connection_string" {
 
 variable "gitops_repo_path" {
   type        = string
-  description = "Local directory that receives generated manifests (apps/<environment>/<customer>). Not read by Flux until those files are pushed to mercury-gitops."
+  description = "Local path to GitOps repository"
+  default     = "/workspaces/mercury-gitops"
 }
 
 variable "domain" {
   type        = string
-  description = "Base domain for ingress (customer is a subdomain, for example julius.p10-staging.d11s.space)"
+  description = "Base domain for ingress (customer will be subdomain)"
+  # No default - must be set per environment (e.g., mercury-staging.kubecraftlabs.com)
 }
 
 ## Sizing Variables (with sensible defaults)
@@ -73,8 +75,8 @@ variable "n8n_storage_size" {
 
 variable "n8n_version" {
   type        = string
-  description = "n8n container image version. Matches the tag on customer1-n8n in mercury-gitops."
-  default     = "2.35.3"
+  description = "n8n container image version"
+  default     = "1.123.3"
 }
 
 ## Resource Limits

@@ -13,13 +13,13 @@ patches:
     patch: |-
       - op: replace
         path: /spec/parameters/userAssignedIdentityID
-        value: "00000000-0000-0000-0000-000000000000"
+        value: "ac9bb7e1-d975-415c-aeae-1a0e7ba4e163"
       - op: replace
         path: /spec/parameters/keyvaultName
-        value: "d11s-kv-p10-prod"
+        value: "kv-mercury-prod"
       - op: replace
         path: /spec/parameters/tenantId
-        value: "480dcc85-c1a6-45ad-b7f9-d4b3e55c16f4"
+        value: "6c0d1498-a808-4d41-a865-fdebeb412738"
 
 configMapGenerator:
   - name: kube-prometheus-stack-values
