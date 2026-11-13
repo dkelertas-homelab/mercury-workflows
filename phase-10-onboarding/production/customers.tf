@@ -8,7 +8,7 @@ locals {
   ])
 
   environment      = "production"
-  domain           = "mercury-prod.kubecraftlabs.com"
+  domain           = "mercury-prod.d11s.space"
   gitops_repo_path = "/workspaces/mercury-gitops"
 
   customers_sorted = sort(tolist(local.customers))

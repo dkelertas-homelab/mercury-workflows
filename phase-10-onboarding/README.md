@@ -108,11 +108,11 @@ To use real Telegram credentials:
 
    ```bash
    # Update the secret values directly in Key Vault
-   az keyvault secret set --vault-name kv-mercury-staging \
+   az keyvault secret set --vault-name d11s-kv-mercury-staging \
      --name julius-telegram-bot-token \
      --value "YOUR_REAL_BOT_TOKEN"
 
-   az keyvault secret set --vault-name kv-mercury-staging \
+   az keyvault secret set --vault-name d11s-kv-mercury-staging \
      --name julius-telegram-chat-id \
      --value "YOUR_REAL_CHAT_ID"
    ```
