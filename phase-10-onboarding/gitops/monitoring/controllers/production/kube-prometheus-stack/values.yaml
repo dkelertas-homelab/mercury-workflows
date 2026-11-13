@@ -39,11 +39,11 @@ grafana:
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
     hosts:
-      - grafana.mercury-prod.kubecraftlabs.com
+      - grafana.p10-prod.d11s.space
     tls:
       - secretName: grafana-tls
         hosts:
-          - grafana.mercury-prod.kubecraftlabs.com
+          - grafana.p10-prod.d11s.space
 
   # Mount CSI secrets volume to trigger secret sync
   extraSecretMounts:

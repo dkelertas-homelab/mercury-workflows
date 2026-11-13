@@ -1,170 +1,141 @@
 # Phase 10: Customer Onboarding
 
-This phase combines customer onboarding with multi-environment support into a single module that provisions complete customer infrastructure with one Terraform command.
+Staging and production are two roots of the same module, `modules/platform`. They differ by the values in each root's `main.tf` (names, node counts, customers, whether Azure Monitor is on). `modules/customer-onboarding` still creates one blob container, the Key Vault secrets and the GitOps manifests for each customer.
 
-## What This Phase Creates
+These clusters are a lab beside the live `mercury-tf` cluster. They do not reuse its resource group, cluster name, DNS prefix, Key Vault, backup storage account or state key.
 
-For each customer in the list, Terraform provisions:
+| | Live `mercury-tf` | Phase 10 staging | Phase 10 production |
+|---|---|---|---|
+| State key | `phase-7-aks-hardening.tfstate` | `phase-10-staging.tfstate` | `phase-10-production.tfstate` |
+| Resource group | `rg-cloud-course-aks` | `rg-mercury-phase10-staging` | `rg-mercury-phase10-prod` |
+| Cluster | `mercury-staging` | `mercury-p10-staging` | `mercury-p10-prod` |
+| Region | Australia East | Australia East | Australia East |
+| Nodes | 2 + 2 `Standard_D2s_v3` | 2 + 2 `Standard_D2s_v3` | 2 + 4 `Standard_D2s_v3` |
+| Customers | `customer1` (in mercury-gitops, not this module) | `julius`, 1 DB replica | `julius`, `cicero`, `crassus`, 3 DB replicas |
+| Azure Monitor | off | off (`enable_azure_monitor`) | on, 1 GB/day cap |
+| Flux | `dkelertas-homelab/mercury-gitops` `master` | same | same |
 
-**Azure Resources:**
+`temporary_name_for_rotation` is not set. The previous production file did not set it either. Leave `default_node_pool_temporary_name` null. Set it only for the one apply that has to rotate the default node pool, then set it back to null.
 
-- Storage container for CNPG database backups
-- Key Vault secrets (database credentials, SAS token, Telegram credentials)
+## What was unfinished
 
-**GitOps Manifests** (written to mercury-gitops repo):
+The course copies were not deployable on this subscription:
 
-- Namespace with Pod Security Standards (restricted)
-- SecretProviderClass for Azure Key Vault CSI
-- ConfigMap for n8n configuration
-- CNPG database cluster with backup configuration
-- Barman ObjectStore for Azure Blob backups
-- ScheduledBackup for daily backups
-- n8n Deployment (PSS-compliant with probes and resource limits)
-- Service, Ingress, NetworkPolicy
-- Kustomization files
+- North Europe, the course subscription, and Flux pointed at `mischavandenburg/mercury-gitops` on `main`
+- No remote state. A destroy of the cluster resource group would have taken the state with it
+- Staging and production were two full copies of the stack, and staging used the same 2 + 4 nodes as production
+- Key Vault and storage names (`kv-mercury-staging`, `mercurybackupsstaging`) are the course names, not the globally unique `d11s*` names
+- Customer manifests were written to `/workspaces/mercury-gitops`, which is not this machine and not mercury-gitops
+- `gitops/apps` had a single partial `julius` Deployment and no production app path
+- Grafana hostnames and the cert-manager email were still the course values. The monitoring identity patches were course client IDs
 
-## Quick Start
+`mercury-tf/staging` is a separate unfinished copy. It points the customer module at a path that does not exist, its backend symlink is broken (`../backends` from inside `mercury-tf/staging`), and applying it would use the live state key. This phase does not change `mercury-tf`.
+
+## Disk budget
+
+`Standard_D2s_v3` attaches 4 data disks. Each customer needs one disk per CNPG instance plus one for the n8n volume. kube-prometheus-stack adds one Prometheus volume on the user pool.
+
+| Environment | Customers | DB replicas | Disks needed | User nodes | Slots |
+|---|---|---|---|---|---|
+| Staging | 1 (`julius`) | 1 | 1×2 + 1 Prometheus = 3 | 2 | 8 |
+| Production | 3 | 3 | 3×4 + 1 Prometheus = 13 | 4 | 16 |
+
+A fourth HA customer (the course list also had `brutus`) would be 4×4 + 1 = 17 disks, which does not fit on 4 nodes. The module refuses the apply when the disk sum exceeds the slots. Adding `cicero` to staging at 1 replica is 5 disks and still fits. Adding a fourth staging customer at 1 replica is 9 disks and does not.
+
+## Bring-up
+
+Prerequisites: `az login` to subscription `4d3581c5-8c2a-4c59-8455-f5453776eeb7`, Storage Blob Data Contributor on `d11smercurytfstate`, and the Flux deploy key at `~/.ssh/mercury`.
 
 ```bash
-# Staging environment
-cd staging/
-terraform init
+az provider register --namespace Microsoft.KubernetesConfiguration
+
+cd phase-10-onboarding/staging
+terraform init -backend-config=azure-blob.tfbackend
 terraform apply
 
-# Production environment
-cd production/
-terraform init
+# production, when you want the larger cluster
+cd ../production
+terraform init -backend-config=azure-blob.tfbackend
 terraform apply
 ```
 
-## Adding a New Customer
+Apply writes customer manifests under `phase-10-onboarding/gitops/apps/<environment>/<customer>/` and rewrites `apps/<environment>/kustomization.yaml`. It does not push them.
 
-Simply add a name to the customers list in `staging/customers.tf` or `production/customers.tf`:
+Confirm the version is still offered before the first apply:
 
-```hcl
-locals {
-  customers = toset([
-    "julius",
-    "cicero",
-    # "crassus",   # Uncomment to add
-  ])
-}
+```bash
+az aks get-versions -l australiaeast --output table
 ```
 
-Then run `terraform apply` - Terraform generates all manifests automatically.
+The roots pin `1.34.10`, which is what `mercury-tf` runs. If Australia East has dropped that patch, change `kubernetes_version` in the root you are applying.
 
-## Flux Kustomization Dependencies
+### Azure Monitor
 
-The Flux configuration uses a specific dependency chain to ensure resources are created in the correct order:
+Staging leaves Container Insights and diagnostic settings off. Set `enable_azure_monitor = true` in `staging/main.tf` before apply (or a later apply) to create:
 
-```
-infra-controllers     (Traefik, cert-manager, CNPG operator)
-        |
-        v
-  infra-configs       (ClusterIssuers, etc.)
-        |
-        v
-   cnpg-plugin        (Barman cloud plugin - needs cert-manager)
-        |
-        v
-      apps            (Customer workloads - need CNPG plugin)
-```
+- Log Analytics workspace `law-d11s-p10-<environment>` (30 day retention, daily cap from `log_analytics_daily_quota_gb`)
+- Container Insights (`oms_agent` with managed identity, plus the ContainerInsights solution)
+- An AKS diagnostic setting for `kube-audit-admin` and AllMetrics
 
-This ordering is critical when deploying from scratch:
+Production turns that on with a 1 GB/day cap. Full `kube-audit` is not enabled. Set `enable_azure_monitor = false` in `production/main.tf` if you want the cluster without the workspace. If the first apply errors on the Monitoring Metrics Publisher role assignment, run apply again after the Container Insights identity exists.
 
-1. **cert-manager** must be ready before CNPG plugin (plugin has webhook certificates)
-2. **CNPG plugin** must be ready before apps (databases use the barman-cloud plugin)
+Alert rules, action groups and least-privilege remediation runbooks are not in this phase.
 
-The dependency is configured in the Terraform Flux configuration:
+## Customer pods
 
-```hcl
-kustomizations {
-  name       = "cnpg-plugin"
-  path       = "./infrastructure/cnpg-plugin/staging"
-  depends_on = ["infra-configs"]
-}
+Terraform does not apply Kubernetes manifests. Flux on the new cluster reads `dkelertas-homelab/mercury-gitops` branch `master`. That repo currently has `apps/staging/customer1` only (`customer1-n8n`). It does not have `julius`, `cicero`, `crassus` or `brutus`, and it does not have `infrastructure/cnpg-plugin/` or any `production` path. Do not commit those from this pull request. Until a follow-up adds them, Flux on the new cluster will be unhealthy and no phase-10 customer pod will start.
 
-kustomizations {
-  name       = "apps"
-  path       = "./apps/staging"
-  depends_on = ["cnpg-plugin"]
-}
-```
+The first apply still installs Flux against `master`. On that branch `apps/staging` is the live `customer1` app, aimed at Key Vault `d11s-kv-mercury-staging` and the live cluster's identity. The new staging cluster will try to sync that app, and it will fail the secret mount. It will also fail `infrastructure/cnpg-plugin/staging`, which is not in the repo. That does not change the live cluster. Expect Flux to stay unhealthy until the follow-up below replaces those paths.
 
-## Telegram Credentials (Demo)
+After apply, copy the generated tree and the phase-10 paths Flux expects:
 
-Terraform creates **dummy Telegram credentials** in Key Vault for each customer:
+- `gitops/apps/<environment>/` (generated customers)
+- `gitops/infrastructure/cnpg-plugin/<environment>` (the live repo still installs the Barman plugin inside `infrastructure/controllers/staging/cnpg/`)
+- `gitops/infrastructure/controllers/production` and `configs/production`
+- `gitops/monitoring/controllers/production` and `configs/production`
 
-- `{customer}-telegram-bot-token`: Set to `DEMO:dummy-bot-token-replace-me`
-- `{customer}-telegram-chat-id`: Set to `000000000`
+Then set the Grafana SecretProviderClass identity. `terraform output gitops_identity_reminder` prints the client ID. The committed patch uses `00000000-0000-0000-0000-000000000000` on purpose. Customer SecretProviderClasses are generated with the real client ID.
 
-These allow the infrastructure to deploy without real credentials.
+### Check that they are running
 
-### Using Real Telegram Credentials
+```bash
+az aks get-credentials -g rg-mercury-phase10-staging -n mercury-p10-staging
+kubelogin convert-kubeconfig -l azurecli
 
-To use real Telegram credentials:
-
-1. **Option A: Update via Azure Portal/CLI** (recommended)
-
-   ```bash
-   # Update the secret values directly in Key Vault
-   az keyvault secret set --vault-name kv-mercury-staging \
-     --name julius-telegram-bot-token \
-     --value "YOUR_REAL_BOT_TOKEN"
-
-   az keyvault secret set --vault-name kv-mercury-staging \
-     --name julius-telegram-chat-id \
-     --value "YOUR_REAL_CHAT_ID"
-   ```
-
-   The `lifecycle { ignore_changes = [value] }` block prevents Terraform from overwriting your real credentials on subsequent applies.
-
-2. **Option B: Remove from Terraform**
-
-   Comment out the Telegram resources in `modules/customer-onboarding/secrets.tf`:
-
-   ```hcl
-   # resource "azurerm_key_vault_secret" "telegram_bot_token" { ... }
-   # resource "azurerm_key_vault_secret" "telegram_chat_id" { ... }
-   ```
-
-   Then create the secrets manually before deploying apps.
-
-## AKS Identity for GitOps SecretProviderClasses
-
-When creating a new AKS cluster, you must update the identity ID in the GitOps repository's SecretProviderClass configurations.
-
-**After running `terraform apply`, check the output:**
-
-```
-gitops_identity_reminder = <<EOT
-IMPORTANT: Update the AKS identity in GitOps SecretProviderClasses!
-
-If you recreated the AKS cluster, update this identity ID in:
-- monitoring/controllers/staging/kube-prometheus-stack/kustomization.yaml
-
-Current AKS identity: 0790a248-1ece-4f6e-972b-53f8d6cbc108
-EOT
+flux get kustomizations -A
+kubectl get pods -n julius
+kubectl get cluster,objectstore,scheduledbackup -n julius
+kubectl get ingress -n julius
 ```
 
-**Update the identity in GitOps:**
+Production uses resource group `rg-mercury-phase10-prod`, cluster `mercury-p10-prod`, and namespaces `julius`, `cicero`, `crassus`.
 
-```yaml
-# monitoring/controllers/staging/kube-prometheus-stack/kustomization.yaml
-patches:
-  - target:
-      kind: SecretProviderClass
-      name: grafana-secrets
-    patch: |-
-      - op: replace
-        path: /spec/parameters/userAssignedIdentityID
-        value: "YOUR_NEW_AKS_IDENTITY_HERE"  # <-- Update this!
+`julius` is up when `julius-n8n` is Ready and `julius-db` instances are Ready. The URL is `https://julius.p10-staging.d11s.space` (production: `https://julius.p10-prod.d11s.space`). DNS records are not created by Terraform. Grafana is `https://grafana.p10-staging.d11s.space` and `https://grafana.p10-prod.d11s.space`.
+
+## Tear-down
+
+Destroy production first if both exist. State stays in `d11smercurytfstate`.
+
+```bash
+cd phase-10-onboarding/production
+terraform destroy
+
+cd ../staging
+terraform destroy
 ```
 
-The customer SecretProviderClasses are auto-generated by Terraform with the correct identity, but the monitoring stack's Grafana SecretProviderClass must be updated manually in the gitops repo.
+Key Vault soft-delete is 7 days and purge protection is off, so a second apply after destroy can reuse the vault name once the soft-deleted vault is purged (`az keyvault purge`). The live `mercury-tf` state is a different key and is not part of this destroy.
 
-## Quota Requirements
+## Telegram placeholders
 
-You may need to increase your vCPU quota for your subscription:
+Each customer and Grafana get dummy Telegram secrets (`DEMO:dummy-bot-token-replace-me`, chat id `000000000`). `lifecycle { ignore_changes = [value] }` keeps a later manual update.
 
-<https://learn.microsoft.com/en-us/azure/quotas/quickstart-increase-quota-portal>
+```bash
+az keyvault secret set --vault-name d11s-kv-p10-staging \
+  --name julius-telegram-bot-token \
+  --value "YOUR_REAL_BOT_TOKEN"
+```
+
+## Adding a customer
+
+Add the name to `customers` in that environment's `main.tf` and apply. Stay inside the disk budget above. Apply rewrites the manifests locally; Flux picks them up only after they are on `master` of mercury-gitops.

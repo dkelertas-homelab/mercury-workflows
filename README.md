@@ -53,7 +53,7 @@ flowchart LR
 | `phase-7-aks-hardening/` | Entra ID RBAC, system/user pool split, `patch` upgrade channel, `NodeImage` OS upgrades, Sunday maintenance windows. **Remote state in Azure Blob (added by me).** |
 | `phase-8-production-n8n/` | GitOps-only: PSS `restricted`, read-only root FS, dropped capabilities, probes, limits, `CiliumNetworkPolicy`. |
 | `phase-9-monitoring/` | kube-prometheus-stack plus Grafana alert rules (CNPG, DB, n8n, node, pod) sent to Telegram. |
-| `phase-10-onboarding/` | `modules/customer-onboarding` plus `staging/` and `production/` roots. A `for_each` over a customer list creates the blob container, KV secrets and GitOps manifests (via `local_file`). |
+| `phase-10-onboarding/` | `modules/platform` (shared by `staging/` and `production/`) and `modules/customer-onboarding`. Separate state keys and resource names from the live `mercury-tf` cluster. See that phase's README for bring-up. |
 | `mercury-tf/` | **My working area.** This is the config I actually run: phase-7 hardening plus the phase-9 monitoring Kustomizations and Grafana Key Vault secrets, localised. `staging/` is a work-in-progress copy that wires in the phase-10 onboarding module. |
 | `backends/azure-blob.tfbackend` | Shared remote-state backend settings (Azure AD auth). Symlinked into `phase-7-aks-hardening/` and `mercury-tf/`. |
 | `.devcontainer/`, `mise.toml`, `scripts/setup` | Dev container with terraform, kubectl, flux, helm, k9s, gh, az CLI and the `kubectl cnpg` plugin. |
@@ -65,14 +65,14 @@ Each phase folder has its own root module and is meant to be applied by itself. 
 
 All of these show up in `git log` / `git diff` against the course's initial commit:
 
-- **Localised**: phases 3–7 and `mercury-tf` moved from North Europe to **Australia East** on my own subscription (phases 1, 2, 9 and 10 still have the course regions). Hostnames use `*.mercury-staging.d11s.space`.
+- **Localised**: phases 3–7, `mercury-tf` and phase-10 run in **Australia East** on my own subscription (phases 1, 2 and 9 still have the course regions). The live cluster uses `*.mercury-staging.d11s.space`. Phase 10 uses `*.p10-staging.d11s.space` and `*.p10-prod.d11s.space` so it does not take the live names.
 - **Globally unique names**: Key Vault `d11s-kv-mercury-staging`, backup storage `d11smercurybakstaging`, state storage `d11smercurytfstate`.
-- **Newer Kubernetes**: AKS bumped from 1.32 to **1.34.7** (phases 5–7) and **1.34.10** (`mercury-tf`). Phases 3–4 were tried on 1.35.0. Phases 9–10 still have the course's 1.32.1.
+- **Newer Kubernetes**: AKS bumped from 1.32 to **1.34.7** (phases 5–7) and **1.34.10** (`mercury-tf` and phase-10). Phases 3–4 were tried on 1.35.0. Phase 9 still has the course's 1.32.1.
 - **Newer n8n**: 1.123.3 to **2.35.3**, done in mercury-gitops.
-- **Remote state**: phase-7 and `mercury-tf` keep state in a separate `rg-mercury-tfstate` storage account (`use_azuread_auth = true`), so `terraform destroy` on the cluster can't take the state with it. Merged via PR #1.
-- **Drift fixes**: `lifecycle { ignore_changes = [oidc_issuer_enabled, default_node_pool[0].upgrade_settings] }` on the `mercury-tf` clusters, so plans stop trying to flip settings AKS manages itself.
-- **Flux pointed at my repo**: phases 5–7 and `mercury-tf` use `ssh://git@github.com/dkelertas-homelab/mercury-gitops`. Phases 6, 7 and `mercury-tf` track branch `master` (phase-5 still says `main`).
-- **Sizing**: in `mercury-tf/staging`, the user pool is 2 nodes rather than the 4 in course phase-10, to keep the vCPU footprint small.
+- **Remote state**: phase-7 and `mercury-tf` keep state in a separate `rg-mercury-tfstate` storage account (`use_azuread_auth = true`), so `terraform destroy` on the cluster can't take the state with it. Merged via PR #1. Phase 10 uses the same account with keys `phase-10-staging.tfstate` and `phase-10-production.tfstate`.
+- **Drift fixes**: `lifecycle { ignore_changes = [oidc_issuer_enabled, default_node_pool[0].upgrade_settings] }` on the `mercury-tf` clusters, so plans stop trying to flip settings AKS manages itself. Phase 10 does the same.
+- **Flux pointed at my repo**: phases 5–7, `mercury-tf` and phase-10 use `ssh://git@github.com/dkelertas-homelab/mercury-gitops`. Phases 6, 7, `mercury-tf` and phase-10 track branch `master` (phase-5 still says `main`).
+- **Sizing**: `mercury-tf` and phase-10 staging use 2 user nodes of `Standard_D2s_v3`. Phase-10 production uses 4, which is the disk budget for 3 HA customers on that VM size.
 - **Phase 3 experiments**: my own `manifests-v00`, and a short-lived attempt at a private-endpoint PostgreSQL server (private DNS zone, public access off) that I later rolled back to public for the lab.
 
 The GitOps-side work (CNPG restore drill, Barman `dependsOn` fix, ingress-class fix, secrets-bootstrap analysis, PSS/Cilium hardening, Telegram alerting) lives in **[mercury-gitops](https://github.com/dkelertas-homelab/mercury-gitops)**.
