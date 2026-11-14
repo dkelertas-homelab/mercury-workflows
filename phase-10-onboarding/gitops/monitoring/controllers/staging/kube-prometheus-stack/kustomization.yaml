@@ -16,7 +16,7 @@ patches:
         value: "fc4da3cd-1408-401d-b3fa-8f23ac1bb46d"
       - op: replace
         path: /spec/parameters/tenantId
-        value: "6c0d1498-a808-4d41-a865-fdebeb412738"
+        value: "480dcc85-c1a6-45ad-b7f9-d4b3e55c16f4"
 
 configMapGenerator:
   - name: kube-prometheus-stack-values

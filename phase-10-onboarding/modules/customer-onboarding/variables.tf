@@ -50,7 +50,7 @@ variable "gitops_repo_path" {
 variable "domain" {
   type        = string
   description = "Base domain for ingress (customer will be subdomain)"
-  # No default - must be set per environment (e.g., mercury-staging.kubecraftlabs.com)
+  # No default - must be set per environment (e.g., mercury-staging.d11s.space)
 }
 
 ## Sizing Variables (with sensible defaults)

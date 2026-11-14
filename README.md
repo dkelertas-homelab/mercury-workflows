@@ -65,13 +65,13 @@ Each phase folder has its own root module and is meant to be applied by itself. 
 
 All of these show up in `git log` / `git diff` against the course's initial commit:
 
-- **Localised**: phases 3–7 and `mercury-tf` moved from North Europe to **Australia East** on my own subscription (phases 1, 2, 9 and 10 still have the course regions). Hostnames use `*.mercury-staging.d11s.space`.
+- **Localised**: phases 3–7, phase-10 and `mercury-tf` moved from North Europe to **Australia East** on my own subscription (phases 1, 2 and 9 still have the course regions). Hostnames use `*.mercury-staging.d11s.space`. Phase 10 production uses `*.mercury-prod.d11s.space`.
 - **Globally unique names**: Key Vault `d11s-kv-mercury-staging`, backup storage `d11smercurybakstaging`, state storage `d11smercurytfstate`.
-- **Newer Kubernetes**: AKS bumped from 1.32 to **1.34.7** (phases 5–7) and **1.34.10** (`mercury-tf`). Phases 3–4 were tried on 1.35.0. Phases 9–10 still have the course's 1.32.1.
+- **Newer Kubernetes**: AKS bumped from 1.32 to **1.34.7** (phases 5–7) and **1.34.10** (`mercury-tf` and phase-10). Phases 3–4 were tried on 1.35.0. Phase 9 still has the course's 1.32.1.
 - **Newer n8n**: 1.123.3 to **2.35.3**, done in mercury-gitops.
 - **Remote state**: phase-7 and `mercury-tf` keep state in a separate `rg-mercury-tfstate` storage account (`use_azuread_auth = true`), so `terraform destroy` on the cluster can't take the state with it. Merged via PR #1.
-- **Drift fixes**: `lifecycle { ignore_changes = [oidc_issuer_enabled, default_node_pool[0].upgrade_settings] }` on the `mercury-tf` clusters, so plans stop trying to flip settings AKS manages itself.
-- **Flux pointed at my repo**: phases 5–7 and `mercury-tf` use `ssh://git@github.com/dkelertas-homelab/mercury-gitops`. Phases 6, 7 and `mercury-tf` track branch `master` (phase-5 still says `main`).
+- **Drift fixes**: `lifecycle { ignore_changes = [oidc_issuer_enabled, default_node_pool[0].upgrade_settings] }` on the `mercury-tf` and phase-10 clusters, so plans stop trying to flip settings AKS manages itself.
+- **Flux pointed at my repo**: phases 5–7, phase-10 and `mercury-tf` use `ssh://git@github.com/dkelertas-homelab/mercury-gitops`. Phases 6, 7, phase-10 and `mercury-tf` track branch `master` (phase-5 still says `main`).
 - **Sizing**: in `mercury-tf/staging`, the user pool is 2 nodes rather than the 4 in course phase-10, to keep the vCPU footprint small.
 - **Phase 3 experiments**: my own `manifests-v00`, and a short-lived attempt at a private-endpoint PostgreSQL server (private DNS zone, public access off) that I later rolled back to public for the lab.
 

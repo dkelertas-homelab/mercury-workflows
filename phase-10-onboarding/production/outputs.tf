@@ -14,7 +14,7 @@ output "aks_keyvault_secrets_provider_client_id" {
 }
 
 output "gitops_identity_reminder" {
-  value = <<-EOT
+  value       = <<-EOT
     IMPORTANT: Update the AKS identity in GitOps SecretProviderClasses!
 
     If you recreated the AKS cluster, update this identity ID in:

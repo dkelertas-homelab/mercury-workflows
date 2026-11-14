@@ -13,7 +13,7 @@ locals {
 
   # Configuration shared across all customers
   environment      = "staging"
-  domain           = "mercury-staging.kubecraftlabs.com"
+  domain           = "mercury-staging.d11s.space"
   gitops_repo_path = "/workspaces/mercury-gitops"
 
   # Sorted customer list for consistent ordering in kustomization
