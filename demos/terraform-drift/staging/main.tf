@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.5" # import blocks need 1.5+ (phase-10 itself says >= 1.0)
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -113,7 +113,10 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   name                  = "userpool"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
   vm_size               = "Standard_D2s_v3"
-  node_count            = 4 # DEMO BASELINE: matches phase-10 before the incident
+  # INTENDED DRIFT, KEPT: scaled 4 -> 5 in the portal during the incident
+  # (CNPG replicas Pending: Standard_D2s_v3 allows 4 data disks per node).
+  # Code now matches reality, so the plan shows no change here.
+  node_count = 5
 
   upgrade_settings {
     max_surge = "33%"

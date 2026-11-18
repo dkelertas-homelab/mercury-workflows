@@ -29,4 +29,23 @@ resource "azurerm_storage_account" "cnpg_backups" {
   blob_properties {
     versioning_enabled = true
   }
+
+  # NOISE, IGNORED: Azure Policy "Inherit CostCentre tag from resource group"
+  # stamps this tag on the account. Terraform does not own it.
+  lifecycle {
+    ignore_changes = [tags["CostCentre"]]
+  }
+}
+
+# UNMANAGED, ADOPTED: container created by hand in the portal for a brutus
+# restore drill. Adopted rather than deleted (see README, "Import or delete").
+import {
+  to = azurerm_storage_container.brutus_manual_restore
+  id = "/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging/blobServices/default/containers/brutus-manual-restore"
+}
+
+resource "azurerm_storage_container" "brutus_manual_restore" {
+  name                  = "brutus-manual-restore"
+  storage_account_id    = azurerm_storage_account.cnpg_backups.id
+  container_access_type = "private"
 }
