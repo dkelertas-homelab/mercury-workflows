@@ -1,0 +1,27 @@
+# EXAMPLE OUTPUT (MOCKED) - hand-written for the drift walkthrough. Nothing here came from a real cluster or a real terraform run.
+# Follow-up scheduled drift run, Thu 12 Nov 2026 02:00 UTC, same read-only scanner identity.
+
+$ terraform plan -refresh-only -detailed-exitcode -lock=false
+azurerm_resource_group.aks: Refreshing state... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks]
+...
+
+No changes. Your infrastructure still matches the configuration.
+
+Terraform has checked that the real remote objects still match the result of
+your most recent changes, and found no differences.
+
+$ echo $?
+0
+
+$ terraform plan -detailed-exitcode -lock=false
+...
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
+
+$ echo $?
+0
+
+# Note: the Azure Policy tag CostCentre = CC-4471 is still on the storage account. It no longer shows up as drift
+# because it was recorded in state by the apply refresh and ignore_changes keeps it out of the config diff.

@@ -1,0 +1,50 @@
+# EXAMPLE OUTPUT (MOCKED) - hand-written for the drift walkthrough. Nothing here came from a real cluster or a real terraform run.
+# Scenario time: Tue 10 Nov 2026 ~14:35 AEDT, after the portal scale-out 4 -> 5 (the INTENDED drift)
+
+$ kubectl get nodes
+NAME                                 STATUS   ROLES    AGE    VERSION
+aks-agentpool-31245987-vmss000000    Ready    <none>   41d    v1.34.10
+aks-agentpool-31245987-vmss000001    Ready    <none>   41d    v1.34.10
+aks-userpool-40918273-vmss000000     Ready    <none>   41d    v1.34.10
+aks-userpool-40918273-vmss000001     Ready    <none>   41d    v1.34.10
+aks-userpool-40918273-vmss000002     Ready    <none>   41d    v1.34.10
+aks-userpool-40918273-vmss000003     Ready    <none>   41d    v1.34.10
+aks-userpool-40918273-vmss000004     Ready    <none>   4m     v1.34.10
+
+$ kubectl get pods -A     # kube-system rows trimmed
+NAMESPACE      NAME                                                     READY   STATUS    RESTARTS   AGE
+cert-manager   cert-manager-7d9f8c6b5-4mzqp                             1/1     Running   0          41d
+cert-manager   cert-manager-cainjector-6c8d7f94b-jt8wd                  1/1     Running   0          41d
+cert-manager   cert-manager-webhook-5b6f9c7d8-q7v2s                     1/1     Running   0          41d
+cicero         cicero-db-1                                              1/1     Running   0          27d
+cicero         cicero-db-2                                              1/1     Running   0          27d
+cicero         cicero-db-3                                              1/1     Running   0          27d
+cicero         cicero-n8n-5d8b7c9f64-8hn5r                              1/1     Running   0          27d
+cnpg-system    cnpg-controller-manager-6b9c4d7f58-lw2xp                 1/1     Running   0          41d
+cnpg-system    barman-cloud-7c5d8b9f6d-n4r8t                            1/1     Running   0          41d
+crassus        crassus-db-1                                             1/1     Running   0          27d
+crassus        crassus-db-2                                             1/1     Running   0          27d
+crassus        crassus-db-3                                             1/1     Running   0          27d
+crassus        crassus-n8n-7f6c8d9b54-hk6vp                             1/1     Running   0          27d
+brutus         brutus-db-1                                              1/1     Running   0          9d
+brutus         brutus-db-2                                              1/1     Running   0          9d
+brutus         brutus-db-3                                              1/1     Running   0          2m
+brutus         brutus-n8n-6c7d9b5f48-x2k9q                              1/1     Running   0          2m
+flux-system    fluxconfig-agent-6d7c9b8f5-2xk4m                         2/2     Running   0          41d
+flux-system    fluxconfig-controller-5c8d7b9f64-p9t6q                   2/2     Running   0          41d
+flux-system    helm-controller-7b9d8c6f5d-mv4zn                         1/1     Running   0          41d
+flux-system    kustomize-controller-6f8c7d9b54-d8q2w                    1/1     Running   0          41d
+flux-system    notification-controller-5d9b8c7f64-s6r3k                 1/1     Running   0          41d
+flux-system    source-controller-7c6d9b8f5d-j5n7h                       1/1     Running   0          41d
+julius         julius-db-1                                              1/1     Running   0          41d
+julius         julius-db-2                                              1/1     Running   0          41d
+julius         julius-db-3                                              1/1     Running   0          41d
+julius         julius-n8n-6d7c8b9f54-t4w8c                              1/1     Running   0          41d
+monitoring     alertmanager-kube-prometheus-alertmanager-0              2/2     Running   0          2m
+monitoring     kube-prometheus-stack-grafana-8b7d6c9f5d-r2m5x           3/3     Running   0          41d
+monitoring     kube-prometheus-stack-operator-6c9d8b7f64-c9k4v          1/1     Running   0          41d
+monitoring     prometheus-kube-prometheus-prometheus-0                  2/2     Running   0          41d
+traefik        traefik-7d8b9c6f5d-w6n2q                                 1/1     Running   0          41d
+
+$ kubectl get pods -A --field-selector=status.phase=Pending
+No resources found

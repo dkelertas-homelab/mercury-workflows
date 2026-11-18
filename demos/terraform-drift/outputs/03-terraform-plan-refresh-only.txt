@@ -1,0 +1,68 @@
+# EXAMPLE OUTPUT (MOCKED) - hand-written for the drift walkthrough. Nothing here came from a real cluster or a real terraform run.
+# Wed 11 Nov 2026 02:00 UTC scheduled drift run (see ../example-workflows/), staging, read-only scanner identity
+# Refresh lines trimmed to the interesting ones; "..." marks trimmed output.
+
+$ terraform plan -refresh-only -detailed-exitcode -lock=false -out=drift.tfplan
+azurerm_resource_group.aks: Refreshing state... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks]
+azurerm_kubernetes_cluster.main: Refreshing state... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.ContainerService/managedClusters/mercury-staging]
+azurerm_kubernetes_cluster_node_pool.user: Refreshing state... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.ContainerService/managedClusters/mercury-staging/agentPools/userpool]
+azurerm_storage_account.cnpg_backups: Refreshing state... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging]
+azurerm_key_vault.mercury_vault: Refreshing state... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.KeyVault/vaults/d11s-kv-mercury-staging]
+module.customer["brutus"].azurerm_storage_container.customer: Refreshing state... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging/blobServices/default/containers/brutus]
+module.customer["cicero"].azurerm_storage_container.customer: Refreshing state... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging/blobServices/default/containers/cicero]
+...
+
+Note: Objects have changed outside of Terraform
+
+Terraform detected the following changes made outside of Terraform since the
+last "terraform apply" which may have affected this plan:
+
+  # azurerm_kubernetes_cluster.main has changed
+  ~ resource "azurerm_kubernetes_cluster" "main" {
+      ~ automatic_upgrade_channel           = "patch" -> "none"
+        id                                  = "/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.ContainerService/managedClusters/mercury-staging"
+        name                                = "mercury-staging"
+        # (46 unchanged attributes hidden)
+
+        # (6 unchanged blocks hidden)
+    }
+
+  # azurerm_kubernetes_cluster_node_pool.user has changed
+  ~ resource "azurerm_kubernetes_cluster_node_pool" "user" {
+        id                      = "/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.ContainerService/managedClusters/mercury-staging/agentPools/userpool"
+        name                    = "userpool"
+      ~ node_count              = 4 -> 5
+        # (31 unchanged attributes hidden)
+
+        # (1 unchanged block hidden)
+    }
+
+  # azurerm_storage_account.cnpg_backups has changed
+  ~ resource "azurerm_storage_account" "cnpg_backups" {
+      ~ allow_nested_items_to_be_public   = false -> true
+        id                                = "/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging"
+        name                              = "d11smercurybakstaging"
+      ~ tags                              = {
+          + "CostCentre"  = "CC-4471"
+            # (3 unchanged elements hidden)
+        }
+        # (62 unchanged attributes hidden)
+
+        # (4 unchanged blocks hidden)
+    }
+
+
+This is a refresh-only plan, so Terraform will not take any actions to undo
+these. If you were expecting these changes then you can apply this plan to
+record the updated values in the Terraform state without changing any remote
+objects.
+
+Saved the plan to: drift.tfplan
+
+$ echo $?
+2
+
+# NOTE: the hand-made container "brutus-manual-restore" is NOT listed above.
+# A refresh-only plan only looks at objects that are already in state, so it
+# can never see unmanaged resources. That one was found by the inventory step
+# in the workflow (az storage container list vs terraform state list). See 05.

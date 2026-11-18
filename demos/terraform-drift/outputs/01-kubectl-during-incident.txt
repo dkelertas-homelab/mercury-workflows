@@ -1,0 +1,29 @@
+# EXAMPLE OUTPUT (MOCKED) - hand-written for the drift walkthrough. Nothing here came from a real cluster or a real terraform run.
+# Scenario time: Tue 10 Nov 2026 ~14:10 AEDT, staging, before anyone touched the portal
+
+$ kubectl config current-context
+mercury-staging
+
+$ kubectl get nodes
+NAME                                 STATUS   ROLES    AGE   VERSION
+aks-agentpool-31245987-vmss000000    Ready    <none>   41d   v1.34.10
+aks-agentpool-31245987-vmss000001    Ready    <none>   41d   v1.34.10
+aks-userpool-40918273-vmss000000     Ready    <none>   41d   v1.34.10
+aks-userpool-40918273-vmss000001     Ready    <none>   41d   v1.34.10
+aks-userpool-40918273-vmss000002     Ready    <none>   41d   v1.34.10
+aks-userpool-40918273-vmss000003     Ready    <none>   41d   v1.34.10
+
+$ kubectl get pods -A --field-selector=status.phase=Pending
+NAMESPACE    NAME                                    READY   STATUS    RESTARTS   AGE
+brutus       brutus-db-3                             0/1     Pending   0          38m
+brutus       brutus-n8n-6c7d9b5f48-x2k9q             0/1     Pending   0          38m
+monitoring   alertmanager-kube-prometheus-alertmanager-0   0/2     Pending   0          38m
+
+$ kubectl describe pod brutus-db-3 -n brutus | tail -6
+Events:
+  Type     Reason            Age   From               Message
+  ----     ------            ----  ----               -------
+  Warning  FailedScheduling  38m   default-scheduler  0/6 nodes are available: 2 node(s) had untolerated taint {CriticalAddonsOnly: true}, 4 node(s) exceed max volume count. preemption: 0/6 nodes are available: 6 Preemption is not helpful for scheduling.
+
+# Why: 4 customers x (3 CNPG instances + 1 n8n PVC) = 16 disks, plus 3 monitoring PVCs = 19.
+# Standard_D2s_v3 allows 4 data disks per node, and 4 user nodes give 16 slots. 19 > 16.

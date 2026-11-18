@@ -1,0 +1,38 @@
+# EXAMPLE OUTPUT (MOCKED) - hand-written for the drift walkthrough. Nothing here came from a real cluster or a real terraform run.
+# Excerpt only. Real output is a single very large JSON document; "..." marks trimmed parts.
+
+$ terraform show -json drift.tfplan | jq -r '.resource_drift[].address'
+azurerm_kubernetes_cluster.main
+azurerm_kubernetes_cluster_node_pool.user
+azurerm_storage_account.cnpg_backups
+# .resource_drift lists what changed outside Terraform (before = state, after = Azure now).
+# It is not a list of actions Terraform will take.
+
+# The raw entry for the node pool, trimmed:
+{
+  "address": "azurerm_kubernetes_cluster_node_pool.user",
+  "mode": "managed",
+  "type": "azurerm_kubernetes_cluster_node_pool",
+  "name": "user",
+  "provider_name": "registry.terraform.io/hashicorp/azurerm",
+  "change": {
+    "before": { "name": "userpool", "node_count": 4, "vm_size": "Standard_D2s_v3", "...": "..." },
+    "after":  { "name": "userpool", "node_count": 5, "vm_size": "Standard_D2s_v3", "...": "..." }
+  }
+}
+
+# The "only send what drifted" reduction used before calling the AI triage step
+# (attribute-level diff, null/unchanged attributes dropped, secrets never included):
+$ terraform show -json drift.tfplan | jq -f ../example-workflows/drift-attrs.jq
+[
+  { "address": "azurerm_kubernetes_cluster.main",
+    "attribute": "automatic_upgrade_channel", "before": "patch", "after": "none" },
+  { "address": "azurerm_kubernetes_cluster_node_pool.user",
+    "attribute": "node_count", "before": 4, "after": 5 },
+  { "address": "azurerm_storage_account.cnpg_backups",
+    "attribute": "allow_nested_items_to_be_public", "before": false, "after": true },
+  { "address": "azurerm_storage_account.cnpg_backups",
+    "attribute": "tags", "before": {"Environment":"staging","Owner":"mercury-app-team","Project":"mercury"},
+    "after": {"CostCentre":"CC-4471","Environment":"staging","Owner":"mercury-app-team","Project":"mercury"} }
+]
+# 4 attribute changes, roughly 400 tokens. Compare with sending the full state of ~160 resources.
