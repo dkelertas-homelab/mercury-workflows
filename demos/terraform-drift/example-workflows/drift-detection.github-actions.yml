@@ -1,0 +1,85 @@
+# EXAMPLE ONLY. This file lives under demos/, NOT .github/workflows/, so GitHub never runs it.
+# Copy it into .github/workflows/ in a repo you actually want to scan.
+#
+# Scheduled Terraform drift detection for one state (staging).
+#   - read-only scanner identity (Reader + Storage Blob Data Reader on the state container), OIDC, no secrets
+#   - `plan -refresh-only -detailed-exitcode`: exit 0 = no drift, 1 = error, 2 = drift
+#   - only the drifted attributes (a few hundred tokens) go to the AI triage step, never the whole state
+name: terraform-drift-staging
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # 02:00 UTC daily
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write # OIDC to Azure (workload identity federation)
+  contents: read
+  issues: write   # to open/update the drift issue
+
+env:
+  TF_WORKING_DIR: phase-10-onboarding/staging
+  ARM_USE_OIDC: "true"
+  ARM_USE_AZUREAD: "true" # state backend auth via Entra, no storage keys
+  ARM_CLIENT_ID: ${{ vars.DRIFT_SCANNER_CLIENT_ID }} # the READ-ONLY identity
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false # we need the raw exit code
+
+      - name: terraform init (read-only)
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -input=false
+
+      - name: refresh-only plan (exit code 2 = drift)
+        id: plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          set +e
+          # -lock=false: the scanner identity cannot write the state blob lease, and a refresh-only plan writes nothing
+          terraform plan -refresh-only -detailed-exitcode -lock=false -input=false -no-color -out=drift.tfplan | tee plan.txt
+          code=${PIPESTATUS[0]}
+          echo "exitcode=$code" >> "$GITHUB_OUTPUT"
+          [ "$code" -eq 1 ] && exit 1   # real error: fail the job
+          exit 0
+
+      - name: reduce drift to attributes (the only thing the AI sees)
+        if: steps.plan.outputs.exitcode == '2'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform show -json drift.tfplan | jq -f "$GITHUB_WORKSPACE/demos/terraform-drift/example-workflows/drift-attrs.jq" > drift-attrs.json
+          jq length drift-attrs.json
+
+      - name: inventory unmanaged storage containers (refresh-only cannot see these)
+        if: steps.plan.outputs.exitcode == '2' || github.event_name == 'workflow_dispatch'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          az login --service-principal -u "$ARM_CLIENT_ID" --tenant "$ARM_TENANT_ID" --federated-token "$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=api://AzureADTokenExchange" | jq -r .value)" >/dev/null
+          az storage container list --account-name d11smercurybakstaging --auth-mode login --query '[].name' -o tsv | sort > azure-containers.txt
+          terraform state list | grep azurerm_storage_container > state-containers.txt || true
+          echo "Compare azure-containers.txt with state-containers.txt in the issue body"
+
+      - name: open or update the drift issue
+        if: steps.plan.outputs.exitcode == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          body="Terraform drift detected in **staging** ($(date -u +%F)).\n\nAttribute-level drift:\n\`\`\`json\n$(cat drift-attrs.json)\n\`\`\`\n\nOwner: app team. Triage each attribute: keep (update code), revert (normal apply), ignore (lifecycle ignore_changes), import/delete (unmanaged)."
+          existing=$(gh issue list --label terraform-drift --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then gh issue comment "$existing" --body "$(printf "$body")"
+          else gh issue create --title "Terraform drift: staging" --label terraform-drift --body "$(printf "$body")"; fi
+
+      # Illustrative AI triage step. Input is drift-attrs.json ONLY. Output is a suggestion for the PR, never an apply.
+      # - name: AI triage suggestion
+      #   if: steps.plan.outputs.exitcode == '2'
+      #   run: ./scripts/ai-triage.sh drift-attrs.json > triage.md   # keep / revert / ignore / unsure + reason; humans decide

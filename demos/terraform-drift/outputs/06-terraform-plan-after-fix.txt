@@ -1,0 +1,58 @@
+# EXAMPLE OUTPUT (MOCKED) - hand-written for the drift walkthrough. Nothing here came from a real cluster or a real terraform run.
+# After the code fix (node_count = 5, ignore_changes for tags["CostCentre"], import block for the manual container).
+# A normal plan (NOT refresh-only). It must show ONLY the changes we want Terraform to make.
+
+$ terraform plan -out=fix.tfplan
+azurerm_resource_group.aks: Refreshing state... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks]
+azurerm_kubernetes_cluster.main: Refreshing state... [id=...mercury-staging]
+azurerm_kubernetes_cluster_node_pool.user: Refreshing state... [id=...agentPools/userpool]
+azurerm_storage_account.cnpg_backups: Refreshing state... [id=...d11smercurybakstaging]
+azurerm_storage_container.brutus_manual_restore: Preparing import... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging/blobServices/default/containers/brutus-manual-restore]
+azurerm_storage_container.brutus_manual_restore: Refreshing state... [id=/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging/blobServices/default/containers/brutus-manual-restore]
+...
+
+Terraform used the selected providers to generate the following execution plan.
+Resource actions are indicated with the following symbols:
+  ~ update in-place
+
+Terraform will perform the following actions:
+
+  # azurerm_kubernetes_cluster.main will be updated in-place
+  ~ resource "azurerm_kubernetes_cluster" "main" {
+      ~ automatic_upgrade_channel           = "none" -> "patch"
+        id                                  = "/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.ContainerService/managedClusters/mercury-staging"
+        name                                = "mercury-staging"
+        # (46 unchanged attributes hidden)
+
+        # (6 unchanged blocks hidden)
+    }
+
+  # azurerm_storage_account.cnpg_backups will be updated in-place
+  ~ resource "azurerm_storage_account" "cnpg_backups" {
+      ~ allow_nested_items_to_be_public   = true -> false
+        id                                = "/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging"
+        name                              = "d11smercurybakstaging"
+        # (62 unchanged attributes hidden)
+
+        # (4 unchanged blocks hidden)
+    }
+
+  # azurerm_storage_container.brutus_manual_restore will be imported
+    resource "azurerm_storage_container" "brutus_manual_restore" {
+        container_access_type             = "private"
+        has_immutability_policy           = false
+        has_legal_hold                    = false
+        id                                = "/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging/blobServices/default/containers/brutus-manual-restore"
+        name                              = "brutus-manual-restore"
+        storage_account_id                = "/subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging"
+        # (3 unchanged attributes hidden)
+    }
+
+Plan: 1 to import, 0 to add, 2 to change, 0 to destroy.
+
+# What to check (this is the review gate):
+#   - node_count 4 -> 5 is NOT listed: the intended drift is now in the code.
+#   - tags["CostCentre"] is NOT listed: ignored on purpose.
+#   - The two reverts ARE listed, both in-place: upgrade channel back to "patch", nested public access back to false.
+#   - The import brings the container under management with zero changes to it.
+#   - No "-/+" or "destroy" lines anywhere.

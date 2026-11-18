@@ -1,0 +1,30 @@
+# EXAMPLE OUTPUT (MOCKED) - hand-written for the drift walkthrough. Nothing here came from a real cluster or a real terraform run.
+# Read-only inventory step: compare what exists in the backup account with what Terraform knows.
+# (A refresh-only plan cannot find unmanaged objects. This is how they get found.)
+
+$ az storage container list --account-name d11smercurybakstaging --auth-mode login --query '[].name' -o tsv | sort
+brutus
+brutus-manual-restore
+cicero
+crassus
+julius
+
+$ terraform state list | grep azurerm_storage_container | sed -E 's/.*\["?([a-z-]+)"?\].*/\1/' | sort
+brutus
+cicero
+crassus
+julius
+
+$ comm -23 <(az ... | sort) <(terraform state list ... | sort)
+brutus-manual-restore          <-- in Azure, not in Terraform state
+
+$ az storage blob list -c brutus-manual-restore --account-name d11smercurybakstaging --auth-mode login --query '[].{name:name,size:properties.contentLength,modified:properties.lastModified}' -o table
+Name                                         Size       Modified
+-------------------------------------------  ---------  -------------------------
+brutus-db/base/20261110T031500/data.tar      48318720   2026-11-10T04:22:41+00:00
+brutus-db/wals/0000000100000000/000000010...   16777216   2026-11-10T04:23:05+00:00
+
+$ az monitor activity-log list --resource-id /subscriptions/4d3581c5-8c2a-4c59-8455-f5453776eeb7/resourceGroups/rg-cloud-course-aks/providers/Microsoft.Storage/storageAccounts/d11smercurybakstaging --offset 7d --query "[?contains(operationName.value,'containers/write')].{who:caller,when:eventTimestamp,op:operationName.localizedValue}" -o table
+Who                          When                       Op
+---------------------------  -------------------------  ---------------------------
+portal-user@example.invalid     2026-11-10T04:20:12+00:00  Create or Update Container

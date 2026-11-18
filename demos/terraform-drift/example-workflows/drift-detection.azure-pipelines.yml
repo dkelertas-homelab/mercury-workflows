@@ -1,0 +1,46 @@
+# EXAMPLE ONLY (Azure DevOps flavour of the same idea). Not wired to any pipeline in this repo.
+# Same logic as drift-detection.github-actions.yml: read-only scanner, refresh-only plan, exit code 2 = drift.
+schedules:
+  - cron: "0 2 * * *"
+    displayName: Nightly drift scan (02:00 UTC)
+    branches:
+      include: [master]
+    always: true
+
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  workingDir: phase-10-onboarding/staging
+
+steps:
+  - task: TerraformInstaller@1
+    inputs:
+      terraformVersion: 1.9.8
+
+  # Service connection backed by workload identity federation, bound to the READ-ONLY scanner identity
+  - task: AzureCLI@2
+    displayName: terraform refresh-only plan (exit code 2 = drift)
+    inputs:
+      azureSubscription: sc-mercury-drift-scanner-readonly
+      scriptType: bash
+      scriptLocation: inlineScript
+      addSpnToEnvironment: true
+      workingDirectory: $(workingDir)
+      inlineScript: |
+        export ARM_USE_OIDC=true ARM_USE_AZUREAD=true
+        export ARM_CLIENT_ID=$servicePrincipalId ARM_TENANT_ID=$tenantId ARM_OIDC_TOKEN=$idToken ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        terraform init -input=false
+        set +e
+        terraform plan -refresh-only -detailed-exitcode -lock=false -input=false -no-color -out=drift.tfplan | tee plan.txt
+        code=${PIPESTATUS[0]}
+        set -e
+        if [ "$code" -eq 1 ]; then exit 1; fi
+        if [ "$code" -eq 2 ]; then
+          terraform show -json drift.tfplan | jq -f $(Build.SourcesDirectory)/demos/terraform-drift/example-workflows/drift-attrs.jq > drift-attrs.json
+          echo "##vso[task.logissue type=warning]Terraform drift detected: $(jq length drift-attrs.json) attribute(s)"
+          echo "##vso[task.setvariable variable=driftDetected]true"
+          # Next: create/refresh a work item or PR comment from drift-attrs.json. Send ONLY that file to the AI step.
+        fi
